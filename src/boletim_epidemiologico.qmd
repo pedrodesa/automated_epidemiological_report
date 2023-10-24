@@ -1,0 +1,91 @@
+---
+title: "Boletim Epidemiológico"
+format: docx
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+# PRE-SETS ----
+rm(list = ls()) # limpa  o ambiente
+
+pasta = paste0("Saidas_", Sys.Date()) #cria uma pasta para as saídas do dia
+if(!dir.exists(pasta)) dir.create(pasta) #cria uma pasta para as saídas do dia
+```
+
+You can add options to executable code like this
+
+```{r}
+# PACOTES ----
+if (!require(pacman)) install.packages("pacman")
+  pacman::p_load(tidyverse, data.table, flextable, officer)
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+# BANCOS ----
+
+who_bruto <- fread("https://covid19.who.int/WHO-COVID-19-global-data.csv", na.strings = "")
+
+```
+
+```{r}
+# MANIPULAÇÕES NO BANCO ----
+who_trat <- who_bruto %>% 
+  select(Date_reported, Country, New_cases, Cumulative_cases) %>% #colunas q quero
+  group_by(Country) %>% # agrupando  (tabela dinamica)
+  summarise(Acumulado = max(Cumulative_cases, na.rm = T)) %>% # agrupando  (tabela dinamica)
+  filter(Acumulado > 30000000) %>%  # filtrando os que tem mais de 30 milhões
+  mutate(Percentual = round(prop.table(Acumulado) * 100, 2))
+
+# VALORES PARA O TEXTO ----
+
+# VALOR PARA BRA
+Valor_BRA <- (who_trat %>% 
+  filter(Country == "Brazil"))$Acumulado
+
+# PERCENTUAL BRA
+Percent_BRA <- (who_trat %>% 
+                  filter(Country == "Brazil"))$Percentual
+
+Percent_BRA <- paste(as.character(Percent_BRA), "%")
+
+# Valor EUA
+Valor_USA <- (who_trat %>% 
+  filter(Country == "United States of America"))$Acumulado
+
+# Valor China
+Valor_CHI <- (who_trat %>% 
+  filter(Country == "China"))$Acumulado
+```
+
+```{r}
+# função para ver  as 5 primeiras por padrão
+head(who_trat) 
+```
+
+```{r}
+# Gerando a figura 1 ----
+ggplot(who_trat) +
+  geom_bar(aes(x = reorder(Country, Acumulado), y = Acumulado), stat = "identity", color = "white", fill = "salmon") +
+  labs(x = "Países", y = "Casos acumulados", title = "Figura 1. Casos acumulados de COVID-19 por país.") +
+  coord_flip() +
+  theme_bw() +
+  scale_y_continuous(labels = scales::comma)
+
+# Dados da figura 1 ----
+img1_path <- paste0(pasta, "/Graf1_Casos_acumulados_7paises.png")
+
+ggsave(filename = img1_path, width = 6, height = 3)
+
+legenda1 <- "Fonte: Rede Nacional de Dados em Saúde/Ministério da Saúde"
+
+```
